@@ -469,6 +469,113 @@ def admin_update_report_status(report_id):
             
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
+
+    # -------------------------------
+# CITIZEN GET MY REPORTS
+# -------------------------------
+@app.route('/api/reports/my/<int:user_id>', methods=['GET'])
+def get_my_reports(user_id):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        cursor.execute("""
+            SELECT id, user_id, incident_type, description, location, 
+                   response_status, admin_notes, responded_at, 
+                   created_at, updated_at, priority
+            FROM reports 
+            WHERE user_id = %s
+            ORDER BY created_at DESC
+        """, (user_id,))
+        
+        reports = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        return jsonify(reports), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# -------------------------------
+# CITIZEN UPDATE MY REPORT
+# -------------------------------
+@app.route('/api/reports/<int:report_id>', methods=['PUT'])
+def update_my_report(report_id):
+    data = request.json
+    user_id = data.get('user_id')
+    incident_type = data.get('incident_type')
+    description = data.get('description')
+    location = data.get('location')
+    
+    if not user_id:
+        return jsonify({'error': 'user_id required'}), 400
+    if not description:
+        return jsonify({'error': 'description required'}), 400
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check if report belongs to user
+        cursor.execute("SELECT id FROM reports WHERE id = %s AND user_id = %s", (report_id, user_id))
+        if not cursor.fetchone():
+            return jsonify({'error': 'Report not found or unauthorized'}), 404
+        
+        # Update report
+        cursor.execute("""
+            UPDATE reports 
+            SET incident_type = %s, description = %s, location = %s, updated_at = NOW()
+            WHERE id = %s AND user_id = %s
+        """, (incident_type, description, location, report_id, user_id))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Report updated successfully'}), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# -------------------------------
+# CITIZEN DELETE MY REPORT
+# -------------------------------
+@app.route('/api/reports/<int:report_id>', methods=['DELETE'])
+def delete_my_report(report_id):
+    data = request.json
+    user_id = data.get('user_id')
+    
+    if not user_id:
+        return jsonify({'error': 'user_id required'}), 400
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check if report belongs to user
+        cursor.execute("SELECT id FROM reports WHERE id = %s AND user_id = %s", (report_id, user_id))
+        if not cursor.fetchone():
+            return jsonify({'error': 'Report not found or unauthorized'}), 404
+        
+        # Delete report
+        cursor.execute("DELETE FROM reports WHERE id = %s AND user_id = %s", (report_id, user_id))
+        
+        conn.commit()
+        affected = cursor.rowcount
+        cursor.close()
+        conn.close()
+        
+        if affected > 0:
+            return jsonify({'success': True, 'message': 'Report deleted successfully'}), 200
+        else:
+            return jsonify({'error': 'Report not found'}), 404
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # -------------------------------
 # RUN SERVER
