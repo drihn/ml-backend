@@ -299,6 +299,103 @@ def signup():
     except Exception as e:
         print(f"❌ Signup error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+    
+    # -------------------------------
+# GET PENDING USERS (ADMIN ONLY)
+# -------------------------------
+@app.route('/api/pending-users', methods=['GET'])
+def get_pending_users():
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Get all pending users
+        cursor.execute("""
+            SELECT id, first_name, email, role, status, created_at
+            FROM users
+            WHERE status = 'pending'
+            ORDER BY created_at DESC
+        """)
+        
+        pending_users = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'count': len(pending_users),
+            'users': pending_users
+        })
+        
+    except Exception as e:
+        print(f"❌ Error fetching pending users: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# -------------------------------
+# APPROVE USER (ADMIN ONLY)
+# -------------------------------
+@app.route('/api/approve-user', methods=['POST'])
+def approve_user():
+    data = request.json
+    user_id = data.get('userId')
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE users 
+            SET status = 'approve' 
+            WHERE id = %s AND status = 'pending'
+        """, (user_id,))
+        
+        conn.commit()
+        affected = cursor.rowcount
+        cursor.close()
+        conn.close()
+        
+        if affected > 0:
+            return jsonify({'success': True, 'message': 'User approved successfully'})
+        else:
+            return jsonify({'success': False, 'error': 'User not found or already approved'}), 404
+            
+    except Exception as e:
+        print(f"❌ Error approving user: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# -------------------------------
+# REJECT USER (ADMIN ONLY)
+# -------------------------------
+@app.route('/api/reject-user', methods=['POST'])
+def reject_user():
+    data = request.json
+    user_id = data.get('userId')
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE users 
+            SET status = 'reject' 
+            WHERE id = %s AND status = 'pending'
+        """, (user_id,))
+        
+        conn.commit()
+        affected = cursor.rowcount
+        cursor.close()
+        conn.close()
+        
+        if affected > 0:
+            return jsonify({'success': True, 'message': 'User rejected successfully'})
+        else:
+            return jsonify({'success': False, 'error': 'User not found or already processed'}), 404
+            
+    except Exception as e:
+        print(f"❌ Error rejecting user: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # -------------------------------
 # RUN SERVER
