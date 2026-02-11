@@ -254,6 +254,51 @@ def get_stats():
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+    
+    # -------------------------------
+# USER REGISTRATION (SIGNUP)
+# -------------------------------
+@app.route('/api/signup', methods=['POST'])
+def signup():
+    data = request.json
+    first_name = data.get('first_name') or data.get('full_name') or data.get('name')
+    email = data.get('email')
+    password = data.get('password')
+    
+    # Validate input
+    if not first_name or not email or not password:
+        return jsonify({'success': False, 'error': 'All fields are required'}), 400
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Check if email already exists
+        cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
+        if cursor.fetchone():
+            return jsonify({'success': False, 'error': 'Email already registered'}), 400
+        
+        # Insert new user (default: citizen, pending approval)
+        cursor.execute("""
+            INSERT INTO users (first_name, email, password, role, status)
+            VALUES (%s, %s, %s, 'citizen', 'pending')
+        """, (first_name, email, password))
+        
+        conn.commit()
+        user_id = cursor.lastrowid
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Registration successful! Please wait for admin approval.',
+            'user_id': user_id
+        })
+        
+    except Exception as e:
+        print(f"❌ Signup error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # -------------------------------
 # RUN SERVER
