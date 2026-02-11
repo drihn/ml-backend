@@ -63,42 +63,42 @@ def get_db_connection():
 # HELPER FUNCTION FOR PREDICTIONS
 # -------------------------------
 def get_ml_predictions(text):
-    """Get category and risk predictions for text"""
+    """Get category and risk predictions for text, robust version"""
     if not text or not text.strip():
         return {"category": "Unknown", "risk": "Unknown"}
-    
-    try:
-        # Check if models are loaded
-        if category_model is None or tfidf is None:
-            return {"category": "Model not loaded", "risk": "Model not loaded"}
-        
-        # CATEGORY PREDICTION
-        category = category_model.predict([text])[0]
-        safe_cat = category.replace(" ", "_").lower()
 
-        # Check if risk model exists for this category
+    if category_model is None or tfidf is None:
+        return {"category": "Model not loaded", "risk": "Model not loaded"}
+
+    try:
+        # --- CATEGORY PREDICTION ---
+        category = category_model.predict([text])[0]
+
+        # Ensure consistent filename for risk model
+        safe_cat = category.replace(" ", "_").lower()
         kmeans_path = os.path.join(RISK_MODEL_DIR, f"{safe_cat}_kmeans.pkl")
         map_path = os.path.join(RISK_MODEL_DIR, f"{safe_cat}_risk_map.pkl")
 
-        if not os.path.exists(kmeans_path):
-            return {"category": category, "risk": "Unknown"}
+        # --- RISK PREDICTION ---
+        if os.path.exists(kmeans_path) and os.path.exists(map_path):
+            risk_model = joblib.load(kmeans_path)
+            risk_mapping = joblib.load(map_path)
 
-        # LOAD RISK MODEL
-        risk_model = joblib.load(kmeans_path)
-        risk_mapping = joblib.load(map_path)
-
-        text_vec = tfidf.transform([text])
-        cluster = int(risk_model.predict(text_vec)[0])
-        risk_label = risk_mapping.get(cluster, "Unknown")
+            text_vec = tfidf.transform([text])
+            cluster = int(risk_model.predict(text_vec)[0])
+            risk_label = risk_mapping.get(cluster, "Unknown")
+        else:
+            risk_label = "Unknown"
+            print(f"⚠️ No risk model found for category '{category}' ({safe_cat})")
 
         return {
             "category": category,
             "risk": risk_label,
             "risk_level": risk_label
         }
-    
+
     except Exception as e:
-        print(f"Prediction error: {e}")
+        print(f"❌ Prediction error: {e}")
         return {"category": "Unknown", "risk": "Unknown"}
 
 # -------------------------------
