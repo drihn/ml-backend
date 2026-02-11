@@ -576,6 +576,47 @@ def delete_my_report(report_id):
             
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
+    # -------------------------------
+# CHANGE PASSWORD
+# -------------------------------
+@app.route('/api/change-password', methods=['PUT'])
+def change_password():
+    data = request.json
+    user_id = data.get('userId')
+    current_password = data.get('currentPassword')
+    new_password = data.get('newPassword')
+    
+    if not user_id or not current_password or not new_password:
+        return jsonify({'error': 'All fields are required'}), 400
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Check if user exists and current password matches
+        cursor.execute("SELECT id, password FROM users WHERE id = %s", (user_id,))
+        user = cursor.fetchone()
+        
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Verify current password (assuming plain text for now)
+        if user['password'] != current_password:
+            return jsonify({'error': 'Current password is incorrect'}), 401
+        
+        # Update to new password
+        cursor.execute("UPDATE users SET password = %s WHERE id = %s", (new_password, user_id))
+        conn.commit()
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Password updated successfully'}), 200
+        
+    except Exception as e:
+        print(f"❌ Change password error: {e}")
+        return jsonify({'error': str(e)}), 500
 
 # -------------------------------
 # RUN SERVER
