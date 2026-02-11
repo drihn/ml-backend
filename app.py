@@ -9,6 +9,24 @@ from datetime import datetime
 app = Flask(__name__)
 CORS(app)   # ✅ allow requests from React
 
+@app.route('/')
+def home():
+    """Root endpoint - para hindi 404"""
+    return jsonify({
+        'service': 'Smart Barangay API',
+        'status': 'running',
+        'version': '1.0.0',
+        'endpoints': {
+            'health': '/api/health',
+            'database': '/api/test-db',
+            'login': '/api/login',
+            'reports': '/api/reports',
+            'stats': '/api/stats',
+            'predict': '/predict'
+        },
+        'message': 'Welcome to Smart Barangay Backend!'
+    })
+
 # -------------------------------
 # LOAD ML MODELS
 # -------------------------------
