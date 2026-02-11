@@ -396,6 +396,79 @@ def reject_user():
     except Exception as e:
         print(f"❌ Error rejecting user: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+    
+    # -------------------------------
+# ADMIN GET ALL REPORTS
+# -------------------------------
+@app.route('/api/admin/reports', methods=['GET'])
+def admin_get_reports():
+    admin_id = request.args.get('admin_id')
+    
+    # Optional: Verify admin
+    if not admin_id:
+        return jsonify({'error': 'admin_id required'}), 400
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        cursor.execute("""
+            SELECT r.*, u.first_name, u.email 
+            FROM reports r
+            JOIN users u ON r.user_id = u.id
+            ORDER BY r.created_at DESC
+        """)
+        
+        reports = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        return jsonify(reports), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# -------------------------------
+# ADMIN UPDATE REPORT STATUS
+# -------------------------------
+@app.route('/api/admin/reports/<int:report_id>/status', methods=['PUT'])
+def admin_update_report_status(report_id):
+    data = request.json
+    admin_id = data.get('admin_id')
+    response_status = data.get('response_status')
+    admin_notes = data.get('admin_notes', '')
+    
+    # Optional: Verify admin
+    if not admin_id:
+        return jsonify({'error': 'admin_id required'}), 400
+    
+    valid_statuses = ['pending', 'in_progress', 'responded', 'resolved', 'rejected']
+    if response_status not in valid_statuses:
+        return jsonify({'error': f'Invalid status. Must be one of: {valid_statuses}'}), 400
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE reports 
+            SET response_status = %s, admin_notes = %s, responded_at = NOW()
+            WHERE id = %s
+        """, (response_status, admin_notes, report_id))
+        
+        conn.commit()
+        affected = cursor.rowcount
+        cursor.close()
+        conn.close()
+        
+        if affected > 0:
+            return jsonify({'success': True, 'message': 'Report status updated'}), 200
+        else:
+            return jsonify({'error': 'Report not found'}), 404
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # -------------------------------
 # RUN SERVER
