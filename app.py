@@ -27,14 +27,14 @@ RISK_MODEL_DIR = "risk_models"
 # DATABASE CONNECTION
 # -------------------------------
 def get_db_connection():
-    """Connect to Railway MySQL database"""
     try:
         conn = mysql.connector.connect(
-            host=os.getenv('DB_HOST', 'yamanote.proxy.rlwy.net'),
-            user=os.getenv('DB_USER', 'root'),
-            password=os.getenv('DB_PASSWORD', 'EoJhzIWGIkfIyHV0EnPBrzGTMYKMpGyB'),
-            database=os.getenv('DB_NAME', 'railway'),
-            port=int(os.getenv('DB_PORT', 55190))
+            host=os.environ.get("DB_HOST"),
+            user=os.environ.get("DB_USER"),
+            password=os.environ.get("DB_PASSWORD"),
+            database=os.environ.get("DB_NAME"),
+            port=int(os.environ.get("DB_PORT")),
+            connection_timeout=10
         )
         return conn
     except Exception as e:
